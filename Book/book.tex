@@ -158,7 +158,7 @@
                                               % not use acronyms
 
 % Now include symbols of symbols and options (if this is the case)
-\input{symbols/symbolsgl.tex}                 % EDIT this file or
+%\input{symbols/symbolsgl.tex}                 % EDIT this file or
                                               % comment it out if you do 
                                               % not use acronyms
 
@@ -188,21 +188,18 @@
 %\part*{Memoria}
 %\label{part:memoria}
 
-\input{chapters/introduccion.tex}
-
-\input{chapters/estudioTeorico.tex}
-
-\input{chapters/desarrollo.tex}
-
-\input{chapters/resultados.tex}
-
-\input{chapters/conclusiones.tex}
-
-% Optional in PFCs
-%\input{pliego/pliego.tex}
-
-% Optional in PFCs, compulsory in TFGs
-\input{presupuesto/presupuesto.tex}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{chapters/1_introduccion.tex}
+%\input{chapters/2_estado_arte.tex}
+%\input{chapters/3_propuesta.tex}
+%\input{chapters/4_kitti.tex}
+%\input{chapters/5_deteccion2d.tex}
+%\input{chapters/6_aprox_distancia.tex}
+%\input{chapters/7_roi.tex}
+%\input{chapters/8_deteccion3d.tex}
+%\input{chapters/9_completo.tex}
+%\input{chapters/10_conclusiones.tex}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %
 % END Normal chapters. Edit/modify all within this section
@@ -231,11 +228,13 @@
 
 %\appendix                                         % DO NOT TOUCH THIS LINE!
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{appendices}
-  \input{appendix/manual.tex}
-  \input{appendix/herramientas.tex}
-  \input{appendix/versiones.tex}
+  %\input{Book/appendix/manual.tex}
+  %\input{Book/appendix/pliego.tex}
+  %\input{Book/appendix/presupuesto.tex}
 \end{appendices}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % END Appendices. Edit/modify all within this section
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
