@@ -40,17 +40,41 @@
 \subsection{VoxelNet}
 \label{sec:VoxelNet}
 
-\subsection{SECOND}
-\label{sec:SECOND}
-
 \subsection{PointPillars}
 \label{sec:PointPillars}
 
 %Relación con MV3D (fase BEV)
 %Selección basada en métricas de PointPainting
 
-\section{Creación de un dataset de entrada para el modelo}
-\label{sec:Creación de un dataset de entrada para el modelo}
+\section{Creación del modelo Frustum PointPillars}
+\label{sec:Creación del modelo Frustum PointPillars}
+
+\begin{table}[H]
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+\textbf{Ajuste} & \textbf{Entradas} & \textbf{A GPU} & \textbf{Preparación} & \textbf{VoxelNet} & \textbf{MiddleNet} & \textbf{RPN} & \textbf{NMS} \\ \hline \hline
+\multirow{3}{*}{No} & 1  & 0.345 ms & 0.602 ms  & 0.586 ms & 0.262 ms & 2.145 ms & 1.688 ms  \\ \cline{2-8} 
+                    & 8  & 1.184 ms & 4.058 ms  & 1.363 ms & 1.493 ms & 2.734 ms & 10.945 ms \\ \cline{2-8} 
+                    & 20 & 2.378 ms & 10.802 ms & 2.769 ms & 3.518 ms & 4.102 ms & 26.289 ms \\ \hline
+\multirow{3}{*}{Sí} & 1  & 0.345 ms & 0.602 ms  & 0.586 ms & 0.262 ms & 2.145 ms & 1.137 ms  \\ \cline{2-8} 
+                    & 8  & 1.184 ms & 4.058 ms  & 1.363 ms & 1.493 ms & 2.734 ms & 6.704 ms  \\ \cline{2-8} 
+                    & 20 & 2.378 ms & 10.802 ms & 2.769 ms & 3.518 ms & 4.102 ms & 16.678 ms \\ \hline
+\end{tabular}
+\end{table}
 
 \section{Entrenamiento y evaluación de Frustum PointPillars}
 \label{sec:Entrenamiento y evaluación de Frustum PointPillars}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Clase} & \textbf{Benchmark (AP)} & \textbf{Fácil} & \textbf{Moderado} & \textbf{Difícil} \\ \hline \hline
+\multirow{2}{*}{Coche}    & BEV          & 94.05 & 88.56 & 88.59 \\ \cline{2-5} 
+                          & Detección 3D & 67.37 & 69.47 & 69.40 \\ \hline
+\multirow{2}{*}{Peatón}   & BEV          & 75.07 & 73.44 & 70.13 \\ \cline{2-5} 
+                          & Detección 3D & 62.44 & 59.95 & 54.29 \\ \hline
+\multirow{2}{*}{Ciclista} & BEV          & 86.39 & 78.55 & 78.06 \\ \cline{2-5} 
+                          & Detección 3D & 81.24 & 73.26 & 67.77 \\ \hline
+\end{tabular}
+\end{table}

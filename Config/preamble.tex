@@ -553,7 +553,15 @@ hyperfootnotes=false,
 % \newenvironment{bottomparagraph}{\par\vspace*{\fill}}{\clearemptydoublepage}
 
 % Add algorithms april 2014
-\usepackage[vlined,algochapter]{algorithm2e}
+\usepackage[vlined,algochapter,linesnumbered,ruled]{algorithm2e}
+% \usepackage{algorithm}
+% \usepackage{algpseudocode}
+% \makeatletter
+% \newenvironment{megaalgorithm}[1][htb]{%
+%     \renewcommand{\ALG@name}{MegaAlgorithm}% Update algorithm name
+%   \begin{algorithm}[#1]%
+%   }{\end{algorithm}}
+% \makeatother
 % Make this compatible with older/newer versions of the package
 \providecommand{\DontPrintSemicolon}{\dontprintsemicolon}
 \providecommand{\SetAlgoLined}{\SetLine}
@@ -626,4 +634,15 @@ hyperfootnotes=false,
 %%% TeX-master: "../book"
 %%% End:
 
+\usepackage{amsmath}
+\usepackage{algpseudocode}
+\SetKwInput{KwInput}{Input}                % Set the Input
+\SetKwInput{KwOutput}{Output}
+% \algblock{Input}{EndInput}
+% \algnotext{EndInput}
+% \algblock{Output}{EndOutput}
+% \algnotext{EndOutput}
+\newcommand{\Desc}[2]{\State \makebox[4.5em][l]{#1}#2}
 
+\usepackage{booktabs}
+\usepackage{multirow}
