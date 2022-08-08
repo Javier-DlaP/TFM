@@ -11,7 +11,7 @@
 \end{FraseCelebre}
 
 \noindent
-Obteniendo las detecciones 2D de los objetos dentro del \ac{FoV} de la cámara utilizada, se procede al estudio de los posibles métodos a utilizar para la aproximación de la distancia a cada uno de los objetos del entorno. Como técnicas a evaluar, en un principio se plantea: el uso de un método basado en una regresión utilizando las características más importantes que consigan predecir la distancia y la obtención directa la distancia mediante la proyección de la nube del puntos del \ac{LiDAR} sobre la cámara del vehículo; siendo ambas técnicas basadas en modelos clásicos de \ac{ML}.
+Obteniendo las detecciones 2D de los objetos dentro del \ac{FoV} de la cámara utilizada, se procede al estudio de los posibles métodos a utilizar para la aproximación de la distancia a cada uno de los objetos del entorno. Como técnicas a evaluar, en un principio se plantea: el uso de un método basado en una regresión utilizando las características más importantes que consigan predecir la distancia y la obtención directa la distancia mediante la proyección de la nube del puntos del \ac{LiDAR} sobre la cámara del vehículo; siendo ambas técnicas basadas en modelos clásicos de \ac{ML}, todo ello para permitir más adelante la reducción de la \ac{RoI} a analizar, para obtener las detecciones 3D finales.
 
 El estudio y elección de los modelos de aproximación de la distancia se han realizada sobre cuadernos de trabajo Jupyter utilizando el lenguaje Python para simplificar el tratamiento de los datos, además de la necesidad de tratar con imágenes y nubes de puntos dentro de este apartado. Este trabajo se puede encontrar en en siguiente repositorio git alojado en GitHub, dentro de la carpeta 'Distance approximation': \url{https://github.com/Javier-DlaP/3D-detection-system-lidar-camera}.
 
@@ -369,7 +369,7 @@ Partiendo del hecho que se conoce la manera de proyectar las nubes de puntos sob
 
 Mientras que el proceso de segmentación semántica puede ser muy útil y preciso para aproximar la distancia a los objetos del entorno, ya que permite utilizar solo los puntos que se encuentran en los vehículos y no aquellos puntos que no incidan en el objeto de interés, pero se deciden utilizar detecciones 2D ya que con modelos con esta tarea se pueden obtener de manera más rápida dichas detecciones además de diferenciar objetos diferentes si se encuentran muy cerca (cosa que no se puede con un modelo de segmentación semántica). En este análisis por tanto se usará el ground-truth 2D de las imágenes para la realización de las aproximaciones de la distancia a los objetos del entorno.
 
-...
+A partir de la sección de la nube de puntos que se encuentra dentro de las detecciones 2D, se podría calcular la distancia a cada uno de los puntos proyectados y asumir la media de la distancia a todos esos puntos como la distancia a cada objeto del entorno, pero esta distancia se vería afectada por los puntos que se encuentren dentro de las detecciones 2D y que no colisionan con los objetos detectados. Por ello, para reducir los outliers o puntos que no se encuentren en los objetos detectados, se aplica la mediana de la distancia a cada uno de los puntos que se encuentran dentro de las bounding boxes 2D.
 
 \begin{figure}[H]
     \centering
@@ -377,6 +377,8 @@ Mientras que el proceso de segmentación semántica puede ser muy útil y precis
     \caption{Aproximación de la distancia mediante la nube de puntos.}
     \label{fig:Aproximación de la distancia mediante la nube de puntos.}
 \end{figure}
+
+En la Figura \ref{fig:Aproximación de la distancia mediante la nube de puntos.} se puede ver en cada uno de los vehículos de la escena junto con su bounding box 2D, la distancia real en rojo y la distancia obtenida a partir de la nube de puntos en tal como se ha explicado en verde. Si se observa más de cerca, se puede apreciar como todas las distancias reales son superiores a aquellas que han sido detectadas por este método, esto es debido a que a partir de los puntos utilizados se obtiene la distancia al chasis del vehículo y no al centro del vehículo tal y como se estudia en el ground-truth. Esto problema se presentará más en profundidad en la próxima sección.
 
 \begin{table}[H]
 \centering
@@ -391,12 +393,18 @@ Ciclista (distancia)     & 7,134          & 11,968             & 12,902   &12,85
 \label{fig:Evaluación sobre KITTI del primer modelo de aproximación de distancia basado en nube de puntos.}
 \end{table}
 
+A partir de este primer modelo de aproximación de la distancia basado en la nube de puntos se evalúa de la misma manera que con el método basado en la altura de las bounding boxes 2D para así poder comparar sus resultados. La Tabla \ref{fig:Evaluación sobre KITTI del primer modelo de aproximación de distancia basado en nube de puntos.} muestra los resultados de dicha evaluación, en los cuales se puede observar como este método empeora bastante la aproximación de la distancia tal y como se tenía antes. Esto es un problema ya que el sensor \ac{LiDAR} es capaz de dar la posición 3D de cada uno de los puntos de manera muy precisa, por lo que hay factores que no se están teniendo en cuenta como objetos que se solapan a bounding boxes 2D con gran parte de sus píxeles que no pertenecen a los objetos de interés.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{Book/figures/6_approx_distancia/bb2d_kitti2.png}
     \caption{Caso de dificultad para obtener la distancia a partir de la nube de puntos.}
     \label{fig:Caso de dificultad para obtener la distancia a partir de la nube de puntos.}
 \end{figure}
+
+Para ejemplificar estos casos en los que las bounding boxes 2D de una imagen se solapan, se presenta la Figura \ref{fig:Caso de dificultad para obtener la distancia a partir de la nube de puntos.} en la que se tienen multitud de vehículos aparcados de forma muy cercana y la gran mayoría de ellos se están solapando al igual de las bounding boxes del dataset de KITTI. Además de este tipo de de oclusiones, hay que tener en cuenta las posibles oclusiones con otros objetos del entorno que no sean detectados, como: farolas, papeleras o árboles; además de los objetos truncados que se encuentren en los bordes de la imagen.
+
+Como solución parcial a este problema que se observa en la imagen anterior, el cual afecta principalmente a los coches, se planea el uso del modelo de aproximación de la distancia anterior (basado en la altura de las bounding boxes 2D) para calcular que objetos se encuentran delante y cuales detrás en la imagen con la que se trabaja. De esta manera, los puntos que se encuentren en las intersecciones de las bounding boxes de los objetos de la parte frontal, solo serán utilizados para la aproximación de la distancia del objeto que se encuentre más cerca a la cámara. Gracias a esto, se espera que los puntos que interceden en varias bounding boxes, no perjudiquen al resto de objetos en los que no inciden dichos puntos del \ac{LiDAR}.
 
 \begin{table}[H]
 \centering
@@ -408,11 +416,15 @@ Peatón (distancia)       & 5,557          & 13,780             & 18,319       &
 Ciclista (distancia)     & 7,107          & 19,733             & 30,106       &25,937  \\ \hline
 \end{tabular}
 \caption{Evaluación del modelo de aproximación de distancia sin intersecciones en las bounding boxes.}
-\label{fig:Evaluación sobre KITTI del primer modelo de aproximación de distancia basado en nube de puntos.}
+\label{fig:Evaluación del modelo de aproximación de distancia sin intersecciones en las bounding boxes.}
 \end{table}
+
+Los resultados que se pueden ver en la Tabla \ref{fig:Evaluación del modelo de aproximación de distancia sin intersecciones en las bounding boxes.} no son muy prometedores, ya que se mejora la precisión en la aproximación de la distancia en los coches, pero empeora en los peatones y ciclistas. Aún obteniendo resultados peores en dos de las clases a detectar, se decide seguir con este método, debido a que los coches son la clase más difícil para aproximar la distancia, como se vio en la Tabla \ref{tab:Evaluación sobre KITTI del modelo de aproximación de distancia basado en regresión.}, además de la reducción del error máximo de un tipo de objeto con el método anterior de 42,346; en la clase 'coche' a 29,971; en la misma clase, lo cual será un factor muy importe en la construcción del modelo de detección 3D como se verá en la Sección \ref{sec:Creación del modelo Frustum PointPillars}.
 
 \subsection{Modelo de rectificación de la distancia}
 \label{sec:Modelo de rectificación de la distancia}
+
+Uno de los problemas de este método de aproximación de la distancia basado en las nubes de puntos es el uso directo de los puntos para obtener la distancia al centro del vehículo, ya que estos surgen de la reflexión de los láseres del \ac{LiDAR} con la primera zona en la que inciden, la cual no es nunca el centro del objeto. Por ello, se ha decidido crear un segundo método para pasar de la distancia a región más cercana de los objetos, a la distancia al centro tridimensional de cada objeto.
 
 \begin{figure}[H]
 	\begin{minipage}{0.32\textwidth}
@@ -431,12 +443,18 @@ Ciclista (distancia)     & 7,107          & 19,733             & 30,106       &2
 	\label{fig:Error del modelo de de proyección con LiDAR por clase.}
 \end{figure}
 
+El primer paso a realizar antes de empezar a crear el segundo modelo para la rectificación de la distancia, es observar los errores obtenidos sobre el dataset, y comprobar que coinciden con el tipo error que se ha razonado. Para ello se analizan los errores de la Figura \ref{fig:Error del modelo de de proyección con LiDAR por clase.}, en los cuales se puede observar como es necesario añadir más distancia en el caso de los coches, mientras que en el caso de los peatones y los ciclistas apenas hace falta modificar nada, si acaso restar cierta parte de la distancia, esto último ocurre debido a que las bounding boxes de los peatones y ciclistas tienen gran cantidad de puntos del \ac{LiDAR} que no inciden en el propio objeto, sino que son parte de objetos tras estos, como: paredes, árboles o asfalto a una mayor distancia. Esto nos indica que estamos en lo cierto, y se puede realizar el modelo de rectificación de la distancia sin temor a que estos errores sean por un sesgo desconocido en la naturaleza de los datos con los que se trabaja.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{Book/figures/6_approx_distancia/detail_lidar.png}
     \caption{Caso con gran error en la aproximación de la distancia.}
     \label{fig:Caso con gran error en la aproximación de la distancia.}
 \end{figure}
+
+Antes de comenzar a crear dicho modelo de rectificación, se va a observar un caso concreto de aquellos que incrementan el error del modelo previamente creado. La Figura \ref{fig:Caso con gran error en la aproximación de la distancia.} muestra el peor caso en el que un vehículo a más de 50 metros se encuentra con una bounding box 2D y un punto del \ac{LiDAR} con el que se calcula su distancia. El problema de este caso aparece cuando uno observa que dicho punto pertenece a la colisión de un haz láser con la esquina superior izquierda del vehículo que se encuentra en el centro de la imagen, esto es debido a una mala reflexión del láser por lo que en la detección de este por parte del \ac{LiDAR} ha quedado desplazado lo suficiente para que se produzca un error de 50 metros en la distancia inferida debido al funcionamiento del modelo anteriormente presentado. Mientras que este tipo de errores no pueden ser solucionados por este método de aproximación de la distancia, tampoco es un problema que sea muy común, además de que en el pipeline de del sistema completo probablemente no fuera detectado por el modelo YOLOv5 al ser un vehículo tan lejano y ocluido.
+
+Como método elegido en la creación del modelo de rectificación de la distancia, se plantea el uso de funciones matemáticas que definan la magnitud de la rectificación a aplicar a cada uno de los objetos detectados. Durante el proceso de creación de estos modelos, se decide ajustar multitud de funciones matemáticas definidas a mano mediante el uso del descenso por el gradiente para reducir el error cuadrático medio de dicha función sobre los puntos definidos por la distancia inferida y el error producido. Las funciones que mejor se ajustan a los datos con los que se trabajan se muestran en la Figura \ref{fig:Modelo de rectificación de la distancia al centro de los objetos.}, donde de forma adicional se puede observar la distribución de los errores cometidos en función de la distancia como un gráfico de dispersión.
 
 \begin{figure}[H]
 	\begin{minipage}{0.32\textwidth}
@@ -455,6 +473,8 @@ Ciclista (distancia)     & 7,107          & 19,733             & 30,106       &2
 	\label{fig:Modelo de rectificación de la distancia al centro de los objetos.}
 \end{figure}
 
+Estas funciones de rectificación definidas logran obtener una precisión mayor en la obtención de la distancia respecto al modelo basado en las nubes de puntos pero sin la rectificación como se puede ver en la Tabla \ref{fig:Evaluación del modelo de aproximación de distancia rectificado.}. Esta mejora se encuentra principalmente en las clases 'coche' y 'ciclista', donde la distancia de la superficie del objeto al centro es mayor, por esto mismo la clase 'peatón' no se encuentra afectado por esta rectificación.
+
 \begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|c|}
@@ -467,6 +487,8 @@ Ciclista (distancia)     & 4,911          & 15,778             & 24,367       & 
 \caption{Evaluación del modelo de aproximación de distancia rectificado.}
 \label{fig:Evaluación del modelo de aproximación de distancia rectificado.}
 \end{table}
+
+Debido a la gran cantidad de valores alejados de las curvas creadas, como se observaba en la Figura \ref{fig:Modelo de rectificación de la distancia al centro de los objetos.}, principalmente en el gráfico de dispersión de los ciclistas donde la recta que define la rectificación se ve desplazada hacia abajo a grandes distancias, se decide eliminar los valores más distantes tomándolos como outliers y ajustar de nuevo las diferentes funciones definidas. Como propuesta para eliminar estos errores más anómalos se decide calcular la mediana de los errores cometidos por diferentes regiones y así generar diversos puntos con los que ajustar las diferentes funciones por cada una clases a detectar.
 
 \begin{figure}[H]
 	\begin{minipage}{0.32\textwidth}
@@ -485,6 +507,8 @@ Ciclista (distancia)     & 4,911          & 15,778             & 24,367       & 
 	\label{fig:Modelo de rectificación de la distancia al centro de los objetos sin outliers.}
 \end{figure}
 
+La Figura \ref{fig:Modelo de rectificación de la distancia al centro de los objetos sin outliers.} muestra los puntos calculados a partir de las medianas de las diversas regiones creadas en función de la distancia en la que se ha predicho la distancia a los objetos. Con estos puntos se han obtenido nuevas funciones a evaluar para intentar obtener funciones que se ajusten de mejor manera a los datos de validación sobre los que no se ha ajustado ningún modelo.
+
 \begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|c|}
@@ -498,8 +522,25 @@ Ciclista (distancia)     & 6,404          & 18,799             & 29,000       & 
 \label{fig:Evaluación del modelo de aproximación de distancia rectificado sin outliers.}
 \end{table}
 
+La evaluación obtenida tras el uso de las últimas funciones creadas sobre el dataset de validación no obtuvo los resultados esperados, ya que como se ve en la Figura \ref{fig:Evaluación del modelo de aproximación de distancia rectificado sin outliers.}, se empeoran las métricas en las clases 'coche' y 'ciclista', pero en la clase 'peatón' se consigue mejorar de forma muy sutil el \ac{MSE} sobre los datos de validación, por lo que la función ajusta sobre esta función es la utilizada finalmente.
+
+Tras toda este serie de métodos para la obtención de la distancia en función de la nube se resume en los siguientes pasos:
+\begin{enumerate}
+    \item Proyección de la nube de puntos a las imágenes de la cámara.
+    \item Filtrado la nube de puntos por cada bounding box 2D.
+    \item Resolución de las intersecciones de los objetos 2D a partir de la obtención de la proximidad de los objetos, a partir del modelo basado en la altura de las cajas 2D, para así contabilizar los puntos del \ac{LiDAR} de las intersecciones en los objetos más cercanos a la cámara.
+    \item Calculo de la distancia a los objetos, a partir de la mediana de la distancia a cada uno de los puntos de las bounding boxes 2D.
+    \item Rectificación de la distancia aproximada a partir de las funciones de rectificación ajustadas.
+\end{enumerate}
+
 \section{Modelo de ensamble}
 \label{sec:Modelo de ensamble}
+
+En este punto se tienen dos modelos para la obtención de la distancia aproximada al centro de los objetos del entorno, siendo aquel basado en la altura de las bounding boxes 2D superior en precisión a aquel basado en la nube de puntos. Mientras que uno de los modelos es más estable en la mayoría de casos que se encuentran en el dataset, el otro mucho más preciso en casos sin ningún tipo de oclusión.
+
+Debido a las diferentes fuentes de datos de las que provienen ambos modelos, se decide crear un modelo de ensamble que unifique los puntos fuertes de ambos modelos, para así obtener en conjunto un sistema mejorado que calcule de forma más precisa la distancia a los objetos. Se realiza tanto énfasis en este apartado, ya que cuanto mejor sea este sistema, más se puede reducir la \ac{RoI} que sea utilizada para la obtención de las detecciones 3D finales, además de reducir el tiempo de inferencia del modelo final basado en Deep Learning y nubes de puntos para la obtención de dichas detecciones finales por utilizar un espacio tridimensional menor).
+
+El análisis del error de los modelos creados se decide realizar mediante el estudio de dos características por cada uno de los modelos, utilizándose para el modelo basado en la altura de las cajas 2D, la propia altura de la caja y la distancia que ha sido inferida, y por otra parte, en el caso del modelo basado en la nube de puntos del \ac{LiDAR} se estudiará el efecto del número de puntos sobre las bounding boxes 2D y la distancia aproximada por el propio modelo. De esta manera, va a ser necesario ajustar 4 funciones de error por cada una de las clases, lo que hacen 12 funciones diferentes para tratar de calcular los errores de ambos modelos y poder elegir de la mejor manera posible el modelo que puede calcular de forma más precisa la distancia a los objetos.
 
 \begin{figure}[H]
     \centering
@@ -507,6 +548,14 @@ Ciclista (distancia)     & 6,404          & 18,799             & 29,000       & 
     \caption{Histograma con la cantidad de puntos sobre las bounding boxes 2D.}
     \label{fig:Histograma con la cantidad de puntos sobre las bounding boxes 2D.}
 \end{figure}
+
+Debido a que hasta ahora no se ha trabajado con la cantidad de puntos que se encuentran en las bounding boxes de los objetos, se muestra en la Figura \ref{fig:Histograma con la cantidad de puntos sobre las bounding boxes 2D.}, el histograma de la cantidad de puntos en los objetos de la parte frontal del vehículo. Se puede apreciar como la gran mayoría de objetos tienen muy pocos puntos del \ac{LiDAR}, pero pueden ascender hasta una cantidad superior a 5000 puntos lo cual indicaría que el objeto está muy cerca del vehículo y muy posiblemente sin oclusión ninguna (lo cual se ha visto con la muestra del dataset que esta premisa es cierta).
+
+En el análisis de los errores de ambos modelos se ha planteado la creación de curvas que se ajusten a los errores cometidos de forma absoluta, todo ello en función de las característica definidas previamente además de las clases de los objetos analizados. Como primera aproximación se decide extraer por diferentes regiones el último decil para definir de esta manera los errores máximos producidos en esta región definida por las características estudiadas. De esta manera se tienen 'n' puntos iguales al numero de regiones por las que se calcula dicho decil, y a partir de estos puntos se puede ajustar una función que defina la relación entre la característica estudiada y el error cometido por el modelo, de manera que conocería cuando es mejor utilizar un modelo y cuando no.
+
+Durante el ajuste de todas las funciones polinómicas definidas de grado 1 a grado 10, se encuentra con un problema de sobreajuste. Debido a que solo se está trabajando con los datos de entrenamiento para todos los análisis, excepto para la evaluación de la distancia final que se realiza con los datos de validación, se encuentra con que al ajustar los puntos que se han creado, se están obteniendo siempre funciones de un gran valor polinómico, como se ve en la Figura \ref{fig:Ajuste de las funciones de error de los modelos.} donde todos los puntos son perfectamente ajustados por las curvas creadas. El problema de dichas curvas perfectamente ajustadas se encuentra en los límites de todas las funciones, donde se empieza y termina con una gran pendiente, esto es producido por tanto a todos los grados de libertad por los que se han podido ajustar las funciones. Como solución a este problema, los puntos de validación de las curvas (pertenecientes también a los datos de entrenamiento) se han modificado para que también se encuentren antes del primer punto con el que se ajusta y también después del último punto de los usados para el ajuste de la curva.
+
+La Figura \ref{fig:Ajuste de las funciones de error de los modelos sin overfitting.} muestra como este método de reducción del overfitting ha sido lo suficientemente efectivo para reducir la grado de la función ajustada además de los extremos de las función donde ya no se observa esas pendientes tan pronunciadas encontradas en la Figura \ref{fig:Ajuste de las funciones de error de los modelos.}. Tras la creación de estos funciones solo faltaría unir estos errores con algún tipo de fórmula que nos permita la selección de un modelo u otro para la obtención de una distancia más precisa, como se verá a continuación.
 
 \begin{figure}[H]
 	\begin{minipage}{0.32\textwidth}
@@ -542,6 +591,12 @@ Ciclista (distancia)     & 6,404          & 18,799             & 29,000       & 
 	\label{fig:Ajuste de las funciones de error de los modelos sin overfitting.}
 \end{figure}
 
+Con las funciones que definen el error por cada una de las características, se decide realizar varias pruebas sobre el conjunto de datos de validación para observar si este modelo conjunto a conseguido algún tipo de mejora respecto de los que se tenían previamente, para ello se crean 4 fórmulas diferentes para dotar de peso a las salidas de los dos modelos que ya se tenían:
+
+\begin{itemize}
+    \item Selección de pesos basado en los deciles del error
+    
+    A partir de las funciones que obtienen el decil que define el 10\% de los peores errores a cometidos, se ejecuta por cada característica y tipo de objeto para con esto tener 2 puntuaciones por cada modelo en cada situación, de esta manera se definen los errores como $((error\_altura + error\_distancia\_altura) * distancia\_altura) * ((error\_n\_puntos + error_distancia\_nube\_puntos) * distancia\_nube\_puntos)$. El único problema es que la salida de las funciones que definen el error no suman 1, por lo que se proyectan dichos valores proporcionalmente para que la suma $error\_altura + error\_distancia\_altura + error\_n\_puntos + error_distancia\_nube\_puntos$ sea igual a 1.
 \begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|}
@@ -552,9 +607,12 @@ Peatón (distancia)       & 1,916          & 2,802             & 3,430\\ \hline
 Ciclista (distancia)     & 2,214          & 5,038             & 6,335\\ \hline
 \end{tabular}
 \caption{Evaluación del modelo ensemble utilizando los deciles de los errores.}
-\label{fig:Evaluación del modelo ensemble utilizando los deciles de los errores.}
+\label{tab:Evaluación del modelo ensemble utilizando los deciles de los errores.}
 \end{table}
 
+    \item Selección de pesos basado en los deciles del error cuadrático
+    
+    De la misma manera que se calculó el error en función de los parámetros analizados, se modifica el error del 10\% peor de los casos y se eleva al cuadrado para de esta manera obtener un modelo que perjudique aún más a los mayores errores, tras esto se proyectan los errores para que la suma de todos ellos sea igual a 1.
 \begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|}
@@ -565,9 +623,12 @@ Peatón (distancia)       & 1,836          & 2,339             & 2,691\\ \hline
 Ciclista (distancia)     & 2,007          & 4,26             & 4,834\\ \hline
 \end{tabular}
 \caption{Evaluación del modelo ensemble utilizando los deciles de los errores cuadráticos.}
-\label{fig:Evaluación del modelo ensemble utilizando los deciles de los errores cuadráticos.}
+\label{tab:Evaluación del modelo ensemble utilizando los deciles de los errores cuadráticos.}
 \end{table}
 
+    \item Selección de pesos basado en los centiles del error
+    
+    Otra de las opciones probadas, es el remplazo de las funciones ajustadas por los deciles, a ser ajustadas por los centiles del error, por lo que se tiene en cuenta el 1\% de los peores errores de las regiones analizadas para la generación de las curvas que definen los errores. Tras este paso se calculan los pesos de la misma manera que el primer modelo de ensamble probado.
 \begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|}
@@ -578,9 +639,12 @@ Peatón (distancia)       & 1,786          & 2,327             & 2,757\\ \hline
 Ciclista (distancia)     & 1,542          & 3,030             & 3,379\\ \hline
 \end{tabular}
 \caption{Evaluación del modelo ensemble utilizando los centiles de los errores.}
-\label{fig:Evaluación del modelo ensemble utilizando los centiles de los errores.}
+\label{tab:Evaluación del modelo ensemble utilizando los centiles de los errores.}
 \end{table}
 
+    \item Selección de pesos basado en los centiles del error cuadrático
+    
+    Como último modelo creado, se ha decidido calcular el cuadrado de las funciones de error que se basan en los centiles, para castigar de la mayor forma posible a aquel modelo que más probabilidad tenga de fallar en cada momento.
 \begin{table}[H]
 \centering
 \begin{tabular}{|c|c|c|c|}
@@ -591,8 +655,12 @@ Peatón (distancia)       & 1,927          & 2,383             & 2,690\\ \hline
 Ciclista (distancia)     & 1,540          & 2,611             & 2,631\\ \hline
 \end{tabular}
 \caption{Evaluación del modelo ensemble utilizando los centiles de los errores cuadráticos.}
-\label{fig:Evaluación del modelo ensemble utilizando los centiles de los errores cuadráticos.}
+\label{tab:Evaluación del modelo ensemble utilizando los centiles de los errores cuadráticos.}
 \end{table}
+
+\end{itemize}
+
+Los resultados mostrados en las Tablas \ref{tab:Evaluación del modelo ensemble utilizando los deciles de los errores.}, \ref{tab:Evaluación del modelo ensemble utilizando los deciles de los errores cuadráticos.}, \ref{tab:Evaluación del modelo ensemble utilizando los centiles de los errores.} y \ref{tab:Evaluación del modelo ensemble utilizando los centiles de los errores cuadráticos.}, han superado con creces las expectativas, ya que solo analizando los datos de entrenamiento, ha sido posible mejorar en gran medida las métricas obtenidas en el modelo basado en la altura y en el basado en la nube de puntos (como se puede observar de forma comparativa con las Tablas \ref{tab:Evaluación sobre KITTI del modelo de aproximación de distancia basado en regresión.} y \ref{fig:Evaluación del modelo de aproximación de distancia rectificado.}). Entre todas las variaciones probadas sobre modelo de ensamble, se observa como aquellas que hacen uso de los centiles para ajustar as curvas de error, son aquellas que obtienen un error menor en las dificultades mayores sin perjudicar apenas la dificultad 'Fácil'. Observando los resultados obtenidos entre los modelos que hacen uso de los centiles se decide decantar por el modelo que no utiliza el error cuadrático.
 
 \begin{table}[H]
 \centering
@@ -606,11 +674,17 @@ Ciclista (distancia)     & 1,540          & 2,611             & 2,631\\ \hline
 \multicolumn{1}{|l|}{\textbf{99\%}} & 7.044  \\ \hline
 \end{tabular}
 \caption{Centiles del error del modelo final de la aproximación de la distancia.}
-\label{fig:Centiles del modelo final de la aproximación de la distancia.}
+\label{tab:Centiles del modelo final de la aproximación de la distancia.}
 \end{table}
+
+En este punto se tiene completo todo el sistema de aproximación de la distancia a los objetos, pero falta obtener el rango de error en el que se mueve todo el modelo creado. Para ello se eliminan las detecciones mayores de 50 metros, ya que de normal no se tienen puntos del \ac{LiDAR} a esta distancia, y es muy difícil detectar objetos con el sistema de detección 3D de objetos tan lejanos. Con esto se observa en la Figura \ref{tab:Centiles del modelo final de la aproximación de la distancia.}, que los centiles de error del nuevo modelo se encuentran a muy poca distancia de error, por lo que se realiza la aproximación de que el 97\%-98\% de los casos se encuentra en un error en el rango de [-5, +5] metros, lo cual será muy útil para el modelo de detección de objetos 3D.
 
 \section{Análisis del error con YOLOv5}
 \label{sec:Análisis del error con YOLOv5}
+
+Las evaluaciones de todo el proceso de ajuste de la distancia a los objetos ha sido producida sobre los datos del dataset, por lo que ningún tipo de error sobre las bounding boxes 2D ha sido probado sobre este sistema, para comprobar como funcionaría en el sistema de detección completo, se ha decidido aplicar el modelo YOLOv5m entrenado previamente para obtener las predicciones de dicho modelo, y utilizarlo para calcular el error a la distancia real utilizando las cajas 2D dadas por el modelo de detección 2D.
+
+El problema de realizar este proceso de evaluación con las predicciones del modelo YOLOv5m es la asociación de las cajas 2D propuestas y el ground-truth del dataset, ya que es necesario calcular el \ac{IoU} ($\frac{Área\ de\ intersección}{Área\ de\ unión}$) de las cajas predichas sobre las reales para poder asociar a cada una, la que mejor se ajusta al ground-truth del dataset.
 
 \begin{table}[H]
 \centering
@@ -624,3 +698,5 @@ Ciclista (distancia)     & 2.207          & 3.787             & 3.803\\ \hline
 \caption{Evaluación del modelo ensemble sobre las detecciones obtenidas del modelo YOLOv5m.}
 \label{fig:Evaluación del modelo ensemble sobre las detecciones obtenidas del modelo YOLOv5m.}
 \end{table}
+
+Tras realizar todo el cálculo de la asociación, se aplica todo el modelo de aproximación de la distancia y se evalúa todas las distancia a los objetos ya que las cajas 2D, ya que han sido modificadas y no son iguales a los datos con los que se trabaja en el dataset. Los resultados obtenidos son similares a los vistos previamente como se puede observar en la Figura \ref{fig:Evaluación del modelo ensemble sobre las detecciones obtenidas del modelo YOLOv5m.}, aunque se mejora ligeramente en la métrica de los coches. Esto puede ser debido a que muchas detecciones del modelo son eliminadas si no superan un \ac{IoU} del 70\%, como se indica en el dataset de KITTI, ya que en este caso se considerarían como detecciones incorrectas.
